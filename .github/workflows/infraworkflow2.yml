@@ -1,54 +1,29 @@
-name: Create Azure Resources
-on: 
-    push:
-        paths: 
-        - 'ARM/**'
-        - '.github/workflows/infraworkflow.yml'
+name: Deploy to Azure
 
-env:
-    AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-    AZURE_RESOURCEGROUP_NAME: myResourceGroup
-    AZURE_WEBAPP_NAME: demo-webappsql-gh-actions-unique
-    ASP_NAME: demo-webappsql-gh-actions
-    SQLSERVER_NAME: demo-webappsql-gh-actions-srv
-    DATABASE_NAME: demo-webappsql-gh-actions-db
-    SQLADMIN_LOGIN: ${{ secrets.SQLADMIN_LOGIN }}
-    SQLADMIN_PASS: ${{ secrets.SQLADMIN_PASS }}
+on:
+  push:
+    branches:
+      - main # Adjust this to your target branch
 
 jobs:
-    build-and-deploy-to-dev:
-      runs-on: ubuntu-latest
-      steps:
-      - name: Azure Login with Federated Identity
-        uses: azure/login@v1
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  build-and-deploy:
+    runs-on: ubuntu-latest
 
-      # Checkout
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          path: repo
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v2
 
-      # Deployment of template    
-      - name: Deploy ARM Template resourcegroup
-        uses: azure/arm-deploy@v1
-        with:
-          scope: subscription
-          subscriptionId: ${{ env.AZURE_SUBSCRIPTION_ID }}
-          region: eastus # Set this to your target region
-          template: repo/templates/azuredeploy.resourcegroup.json
-          parameters: repo/templates/azuredeploy.resourcegroup.parameters.json rgName=${{env.AZURE_RESOURCEGROUP_NAME}}
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # Deployment of template    
-      - name: Deploy ARM Template resources
-        uses: azure/arm-deploy@v1
-        with:
-          scope: resourcegroup
-          subscriptionId: ${{ env.AZURE_SUBSCRIPTION_ID }}
-          resourceGroupName: ${{env.AZURE_RESOURCEGROUP_NAME}}
-          region: centralus # Set this to your target region
-          template: repo/templates/azuredeploy.json
-          parameters: repo/templates/azuredeploy.parameters.json webappName=${{env.AZURE_WEBAPP_NAME}} aspName=${{env.ASP_NAME}} sqlServerName=${{env.SQLSERVER_NAME}} databaseName=${{env.DATABASE_NAME}} sqlAdminLogin=${{env.SQLADMIN_LOGIN}} sqlAdminPass=${{env.SQLADMIN_PASS}}
+    - name: Deploy Resources
+      uses: azure/arm-deploy@v1
+      with:
+        scope: subscription
+        subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        template: path/to/template.json # Path to your ARM template
+        parameters: path/to/parameters.json # Path to your parameters file
