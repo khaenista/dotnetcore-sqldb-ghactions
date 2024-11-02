@@ -1,37 +1,33 @@
 name: Create Azure Resources
 
 on: 
-  push:
-    paths: 
-      - 'ARM/**'
-      - '.github/workflows/infraworkflow.yml'
-  workflow_dispatch: # Allows manual triggering of the workflow
+    push:
+        paths: 
+        - 'ARM/**'
+        - '.github/workflows/infraworkflow.yml'
 
 env:
-  AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }} # set this to your Azure Subscription Id
-  AZURE_RESOURCEGROUP_NAME: demo-webappsql-gh-actions # set this to your preferred resource group name
-  AZURE_WEBAPP_NAME: demo-webappsql-gh-actions-unique # set this to your preferred web app name
-  ASP_NAME: demo-webappsql-gh-actions
-  SQLSERVER_NAME: demo-webappsql-gh-actions-srv # set this to your preferred sql server name
-  DATABASE_NAME: demo-webappsql-gh-actions-db # set this to your preferred sql database name
-  SQLADMIN_LOGIN: ${{ secrets.SQLADMIN_LOGIN }} # Create a secret in your Github repo for the SQL Admin login name you want to use
-  SQLADMIN_PASS: ${{ secrets.SQLADMIN_PASS }} # Create a secret in your Github repo for the SQL Admin password you want to use
-
-permissions:
-  id-token: write # Grant write permission for id-token
+    AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}    # set this to your Azure Subscription Id
+    AZURE_RESOURCEGROUP_NAME: demo-webappsql-gh-actions            # set this to your preferred resource group name
+    AZURE_WEBAPP_NAME: demo-webappsql-gh-actions-unique            # set this to your preferred web app name
+    ASP_NAME: demo-webappsql-gh-actions
+    SQLSERVER_NAME: demo-webappsql-gh-actions-srv                  # set this to your preferred sql server name
+    DATABASE_NAME: demo-webappsql-gh-actions-db                     # set this to your preferred sql database name
+    SQLADMIN_LOGIN: ${{ secrets.SQLADMIN_LOGIN }}                   # Create a secret in your Github repo for the SQL Admin login name you want to use
+    SQLADMIN_PASS: ${{ secrets.SQLADMIN_PASS }}                     # Create a secret in your Github repo for the SQL Admin password you want to use
 
 jobs:
-  build-and-deploy-to-dev:
-    runs-on: ubuntu-latest
-    steps:
-      # Azure Login
+    build-and-deploy-to-dev:
+      runs-on: ubuntu-latest
+      steps:
+          
+      # Azure Login with Federated Identity
       - name: Azure Login with Federated Identity
         uses: azure/login@v1.4.0
         with:
-        client-id: ${{ secrets.AZURE_CLIENT_ID }}
-    tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-    subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       # Checkout
       - name: Checkout
@@ -39,15 +35,15 @@ jobs:
         with:
           path: repo
           
-      # Deployment of resource group template    
+      # Deployment of template    
       - name: Deploy ARM Template resource group
         uses: azure/arm-deploy@v1
         with:
           scope: subscription
           subscriptionId: ${{ env.AZURE_SUBSCRIPTION_ID }}
           region: centralus # Set this to your target region
-          template: repo/templates/azuredeploy.resourcegroup.json # Set this to the location of your template file
-          parameters: repo/templates/azuredeploy.resourcegroup.parameters.json rgName=${{ env.AZURE_RESOURCEGROUP_NAME }} # Override rgName in parameters file
+          template: repo/templates/azuredeploy.resourcegroup.json  # Set this to the location of your template file
+          parameters: repo/templates/azuredeploy.resourcegroup.parameters.json rgName=${{ env.AZURE_RESOURCEGROUP_NAME }} #override rgName in parameters file
 
       # Deployment of resources    
       - name: Deploy ARM Template resources
@@ -57,7 +53,13 @@ jobs:
           subscriptionId: ${{ env.AZURE_SUBSCRIPTION_ID }}
           resourceGroupName: ${{ env.AZURE_RESOURCEGROUP_NAME }}
           region: centralus # Set this to your target region
-          template: repo/templates/azuredeploy.json # Set this to the location of your template file
-          parameters: repo/templates/azuredeploy.parameters.json webappName=${{ env.AZURE_WEBAPP_NAME }} aspName=${{ env.ASP_NAME }} sqlServerName=${{ env.SQLSERVER_NAME }} databaseName=${{ env.DATABASE_NAME }} sqlAdminLogin=${{ env.SQLADMIN_LOGIN }} sqlAdminPass=${{ env.SQLADMIN_PASS }} # Set this to the location of your parameters file
+          template: repo/templates/azuredeploy.json  # Set this to the location of your template file
+          parameters: repo/templates/azuredeploy.parameters.json webappName=${{ env.AZURE_WEBAPP_NAME }} aspName=${{ env.ASP_NAME }} sqlServerName=${{ env.SQLSERVER_NAME }} databaseName=${{ env.DATABASE_NAME }} sqlAdminLogin=${{ env.SQLADMIN_LOGIN }} sqlAdminPass=${{ env.SQLADMIN_PASS }}
 
-# TODO: Once the infrastructure is created, download the web app publish profile of the staging slot and add it as a secret to the repo. It will be used by the workflow.yml file.
+      # Deploy Web App
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}               # Your Web App name
+          slot-name: 'production'                               # Slot name; change if using slots
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}  # The publish profile secret
